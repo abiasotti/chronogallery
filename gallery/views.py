@@ -1,10 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django import forms
 from .models import Photo, Album
-from django.http import HttpResponseNotAllowed
+from django.http import HttpResponseNotAllowed, HttpResponse
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_exempt
+
+
+@csrf_exempt
+def health_check_view(request):
+    """Simple health check endpoint for Kubernetes probes"""
+    return HttpResponse("OK", content_type="text/plain")
 
 
 def photo_gallery_view(request):

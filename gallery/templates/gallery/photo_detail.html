@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Photo Detail</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; }
+        .container { display: flex; }
+        .sidebar {
+            width: 200px;
+            background: #222;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            text-decoration: none;
+            padding: 12px 24px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+        .sidebar a.active, .sidebar a:hover {
+            background: #444;
+        }
+        .main {
+            flex: 1;
+            padding: 32px;
+            background: #f7f7f7;
+        }
+        .photo-detail {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .photo-detail img {
+            max-width: 100%;
+            max-height: 600px;
+            border-radius: 6px;
+        }
+        .meta {
+            margin-top: 16px;
+            color: #555;
+        }
+        .regular-nav {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav class="sidebar">
+        <a href="/">Home</a>
+        <a href="/albums/">Albums</a>
+        <a href="/upload/">Upload</a>
+    </nav>
+    <main class="main">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div></div>
+            <div class="menu-container" style="position: relative;">
+                <button id="menu-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">&#9776;</button>
+                <div id="dropdown-menu" style="display: none; position: absolute; right: 0; top: 36px; background: #fff; border: 1px solid #ddd; border-radius: 6px; min-width: 180px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10;">
+                    <form method="post" action="{% url 'gallery:photo_set_cover' photo.id %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" style="width:100%; text-align:left; background:none; border:none; padding:12px 20px; color:#222; cursor:pointer;">Set as Album Cover</button>
+                    </form>
+                    <a href="#" id="fullscreen-link" style="display: block; padding: 12px 20px; color: #222; text-decoration: none;">Full Screen</a>
+                    <a href="{{ photo.image.url }}" download style="display: block; padding: 12px 20px; color: #222; text-decoration: none;">Download</a>
+                    <a href="#" id="delete-photo-link" style="display: block; padding: 12px 20px; color: #c00; text-decoration: none;">Delete</a>
+                </div>
+            </div>
+        </div>
+        <!-- Modal for delete confirmation -->
+        <div id="delete-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:100; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:32px 24px; border-radius:8px; box-shadow:0 2px 16px rgba(0,0,0,0.15); min-width:320px; text-align:center;">
+                <h2 style="margin-top:0;">Delete Photo?</h2>
+                <p>This will permanently delete the photo. This action cannot be undone.</p>
+                <form method="post" action="{% url 'gallery:photo_delete' photo.id %}" style="margin-top:24px;">
+                    {% csrf_token %}
+                    <button type="button" id="cancel-delete" style="padding:8px 24px; margin-right:16px; background:#eee; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
+                    <button type="submit" style="padding:8px 24px; background:#c00; color:#fff; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+                </form>
+            </div>
+        </div>
+        <div class="photo-detail" id="photo-fullscreen-container">
+            <img id="photo-image" src="{{ photo.image.url }}" alt="Photo">
+            <div id="regular-nav" class="regular-nav" style="margin-top: 24px; display: flex; justify-content: center; gap: 32px;">
+                {% if prev_photo %}
+                    <a href="{% url 'gallery:photo_detail' prev_photo.id %}" style="padding: 8px 24px; background: #eee; border-radius: 4px; text-decoration: none; color: #222;">&larr; Previous</a>
+                {% endif %}
+                {% if next_photo %}
+                    <a href="{% url 'gallery:photo_detail' next_photo.id %}" style="padding: 8px 24px; background: #eee; border-radius: 4px; text-decoration: none; color: #222;">Next &rarr;</a>
+                {% endif %}
+            </div>
+            <div id="fullscreen-nav" style="display:none; position:fixed; top:50%; left:0; width:100vw; z-index:200; pointer-events:none;">
+                {% if prev_photo %}
+                <a href="#" id="fullscreen-prev" data-photo-id="{{ prev_photo.id }}" style="position:absolute; left:24px; top:0; bottom:0; margin:auto; height:48px; width:48px; background:rgba(0,0,0,0.5); color:#fff; border-radius:24px; display:flex; align-items:center; justify-content:center; font-size:32px; text-decoration:none; pointer-events:auto;">&#8592;</a>
+                {% endif %}
+                {% if next_photo %}
+                <a href="#" id="fullscreen-next" data-photo-id="{{ next_photo.id }}" style="position:absolute; right:24px; top:0; bottom:0; margin:auto; height:48px; width:48px; background:rgba(0,0,0,0.5); color:#fff; border-radius:24px; display:flex; align-items:center; justify-content:center; font-size:32px; text-decoration:none; pointer-events:auto;">&#8594;</a>
+                {% endif %}
+            </div>
+            <div class="meta">
+                <div>Album: {{ photo.album.title }}</div>
+                <div>Uploaded: {{ photo.uploaded_at }}</div>
+            </div>
+        </div>
+    </main>
+</div>
+<script>
+    // Burger menu logic
+    const menuBtn = document.getElementById('menu-btn');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+    document.addEventListener('click', function(event) {
+        if (menuBtn.contains(event.target)) {
+            dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+        } else if (!dropdownMenu.contains(event.target)) {
+            dropdownMenu.style.display = 'none';
+        }
+    });
+    // Delete modal logic
+    const deleteLink = document.getElementById('delete-photo-link');
+    const deleteModal = document.getElementById('delete-modal');
+    const cancelDelete = document.getElementById('cancel-delete');
+    if (deleteLink && deleteModal && cancelDelete) {
+        deleteLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            dropdownMenu.style.display = 'none';
+            deleteModal.style.display = 'flex';
+        });
+        cancelDelete.addEventListener('click', function(e) {
+            e.preventDefault();
+            deleteModal.style.display = 'none';
+        });
+    }
+    // Fullscreen logic
+    const fullscreenLink = document.getElementById('fullscreen-link');
+    const photoImage = document.getElementById('photo-image');
+    const fullscreenNav = document.getElementById('fullscreen-nav');
+    const regularNav = document.getElementById('regular-nav'); // Get the regular nav element
+    function showFullscreenNav(show) {
+        if (fullscreenNav) fullscreenNav.style.display = show ? 'block' : 'none';
+    }
+    const photoContainer = document.getElementById('photo-fullscreen-container');
+    if (fullscreenLink && photoContainer) {
+        fullscreenLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            dropdownMenu.style.display = 'none';
+            if (photoContainer.requestFullscreen) {
+                photoContainer.requestFullscreen();
+                setTimeout(() => showFullscreenNav(true), 200);
+            } else if (photoContainer.webkitRequestFullscreen) { /* Safari */
+                photoContainer.webkitRequestFullscreen();
+                setTimeout(() => showFullscreenNav(true), 200);
+            } else if (photoContainer.msRequestFullscreen) { /* IE11 */
+                photoContainer.msRequestFullscreen();
+                setTimeout(() => showFullscreenNav(true), 200);
+            }
+        });
+    }
+    // Always show nav if in fullscreen (fallback)
+    setInterval(function() {
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+        showFullscreenNav(!!isFullscreen);
+    }, 300);
+    // Hide nav when exiting fullscreen
+    document.addEventListener('fullscreenchange', function() {
+        if (!document.fullscreenElement) showFullscreenNav(false);
+    });
+    document.addEventListener('webkitfullscreenchange', function() {
+        if (!document.webkitFullscreenElement) showFullscreenNav(false);
+    });
+    document.addEventListener('msfullscreenchange', function() {
+        if (!document.msFullscreenElement) showFullscreenNav(false);
+    });
+    // Seamless fullscreen navigation
+    function updatePhotoDetail(data) {
+        // Update image
+        photoImage.src = data.image_url;
+        // Update meta
+        document.querySelector('.meta').innerHTML = `<div>Album: ${data.album}</div><div>Uploaded: ${data.uploaded_at}</div>`;
+        // Update prev/next buttons
+        fullscreenNav.innerHTML = '';
+        if (data.prev_id) {
+            fullscreenNav.innerHTML += `<a href=\"#\" id=\"fullscreen-prev\" data-photo-id=\"${data.prev_id}\" style=\"position:absolute; left:24px; top:0; bottom:0; margin:auto; height:48px; width:48px; background:rgba(0,0,0,0.5); color:#fff; border-radius:24px; display:flex; align-items:center; justify-content:center; font-size:32px; text-decoration:none; pointer-events:auto;\">&#8592;</a>`;
+        }
+        if (data.next_id) {
+            fullscreenNav.innerHTML += `<a href=\"#\" id=\"fullscreen-next\" data-photo-id=\"${data.next_id}\" style=\"position:absolute; right:24px; top:0; bottom:0; margin:auto; height:48px; width:48px; background:rgba(0,0,0,0.5); color:#fff; border-radius:24px; display:flex; align-items:center; justify-content:center; font-size:32px; text-decoration:none; pointer-events:auto;\">&#8594;</a>`;
+        }
+        // Re-attach event listeners
+        attachFullscreenNavHandlers();
+    }
+    function attachFullscreenNavHandlers() {
+        const prevBtn = document.getElementById('fullscreen-prev');
+        const nextBtn = document.getElementById('fullscreen-next');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const id = prevBtn.getAttribute('data-photo-id');
+                fetchPhotoDetail(id);
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const id = nextBtn.getAttribute('data-photo-id');
+                fetchPhotoDetail(id);
+            });
+        }
+    }
+    function fetchPhotoDetail(photoId) {
+        fetch(`/photo/${photoId}/json/`)
+            .then(response => response.json())
+            .then(data => updatePhotoDetail(data));
+    }
+    // Attach handlers on initial load
+    attachFullscreenNavHandlers();
+
+    // Helper to show/hide navs based on fullscreen
+    function toggleNavs() {
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+        if (isFullscreen) {
+            fullscreenNav.style.display = 'block';
+            regularNav.style.display = 'none';
+        } else {
+            fullscreenNav.style.display = 'none';
+            regularNav.style.display = 'flex';
+        }
+    }
+    document.addEventListener('fullscreenchange', toggleNavs);
+    document.addEventListener('webkitfullscreenchange', toggleNavs);
+    document.addEventListener('msfullscreenchange', toggleNavs);
+    // Initial toggle
+    toggleNavs();
+</script>
+</body>
+</html> 

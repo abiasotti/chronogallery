@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    restart: unless-stopped
+
+  # For production, you might want to add a database service
+  # db:
+  #   image: postgres:15
+  #   environment:
+  #     - POSTGRES_DB=chronogallery
+  #     - POSTGRES_USER=chronogallery
+  #     - POSTGRES_PASSWORD=your_password_here
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   postgres_data: 

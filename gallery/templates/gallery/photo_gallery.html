@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chronogallery - Gallery</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; }
+        .container { display: flex; }
+        .sidebar {
+            width: 200px;
+            background: #222;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            text-decoration: none;
+            padding: 12px 24px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+        .sidebar a.active, .sidebar a:hover {
+            background: #444;
+        }
+        .main {
+            flex: 1;
+            padding: 32px;
+            background: #f7f7f7;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .gallery-item {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px;
+            width: 180px;
+            text-align: center;
+            position: relative;
+        }
+        .gallery-item img {
+            max-width: 160px;
+            max-height: 120px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        /* Selection indicator styles */
+        .photo-checkbox {
+            display: none;
+        }
+        .selection-indicator {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            border: 2px solid rgba(0,0,0,0.15);
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gallery-item:hover .selection-indicator,
+        .photo-checkbox:focus + .selection-indicator {
+            border-color: #007bff;
+            background: rgba(255,255,255,0.8);
+        }
+        .photo-checkbox:checked + .selection-indicator {
+            background: rgba(0, 123, 255, 0.8);
+            border-color: #007bff;
+        }
+        .selection-indicator::after {
+            content: "";
+            display: none;
+            width: 7px;
+            height: 7px;
+            background: url('data:image/svg+xml;utf8,<svg fill="white" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M6.003 11.803l-3.5-3.5 1.414-1.414L6 8.975l5.086-5.086 1.414 1.414z"/></svg>') no-repeat center center;
+            background-size: contain;
+        }
+        .photo-checkbox:checked + .selection-indicator::after {
+            display: block;
+        }
+        /* Always show on mobile */
+        @media (hover: none) and (pointer: coarse) {
+            .selection-indicator {
+                border-color: #007bff;
+                background: rgba(255,255,255,0.8);
+            }
+        }
+        .drag-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.15);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .drag-overlay.active {
+            display: flex;
+            pointer-events: auto;
+        }
+        .drag-overlay span {
+            background: #fff;
+            color: #222;
+            padding: 32px 48px;
+            border-radius: 12px;
+            font-size: 2rem;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav class="sidebar">
+        <a href="/">Home</a>
+        <a href="/albums/">Albums</a>
+    </nav>
+    <main class="main">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>All Photos</h1>
+            <div class="menu-container" style="position: relative;">
+                <button id="menu-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">&#9776;</button>
+                <div id="dropdown-menu" style="display: none; position: absolute; right: 0; top: 36px; background: #fff; border: 1px solid #ddd; border-radius: 6px; min-width: 160px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10;">
+                    <a href="#" id="upload-photo-link" style="display: block; padding: 12px 20px; color: #222; text-decoration: none;">Upload Photo</a>
+                    <a href="#" id="select-all-link" style="display: block; padding: 12px 20px; color: #222; text-decoration: none;">Select All</a>
+                    <a href="#" id="delete-selected-link" style="display: none; padding: 12px 20px; color: #c00; text-decoration: none;">Delete Selected</a>
+                </div>
+            </div>
+        </div>
+        <!-- Modal for upload form -->
+        <div id="upload-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:100; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:32px 24px; border-radius:8px; box-shadow:0 2px 16px rgba(0,0,0,0.15); min-width:320px; text-align:center;">
+                <h2 style="margin-top:0;">Upload Photo</h2>
+                <form method="post" action="" enctype="multipart/form-data" style="margin-top:24px;">
+                    {% csrf_token %}
+                    <p>
+                        <label for="id_album">Album:</label><br>
+                        <select name="album" id="id_album" style="width: 90%; padding: 8px; margin-top: 4px;">
+                            <option value="">-- Select Album --</option>
+                            {% for album in albums %}
+                                <option value="{{ album.id }}">{{ album.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </p>
+                    <p>
+                        <label for="id_new_album">Or create new album:</label><br>
+                        <input type="text" name="new_album" id="id_new_album" style="width: 90%; padding: 8px; margin-top: 4px;">
+                    </p>
+                    <p>
+                        <label for="id_image">Image:</label><br>
+                        <input type="file" name="image" id="id_image" required style="width: 90%; padding: 8px; margin-top: 4px;">
+                    </p>
+                    <button type="button" id="cancel-upload" style="padding:8px 24px; margin-right:16px; background:#eee; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
+                    <button type="submit" style="padding:8px 24px; background:#222; color:#fff; border:none; border-radius:4px; cursor:pointer;">Upload</button>
+                </form>
+            </div>
+        </div>
+        <!-- Modal for bulk delete confirmation -->
+        <div id="bulk-delete-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:100; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:32px 24px; border-radius:8px; box-shadow:0 2px 16px rgba(0,0,0,0.15); min-width:320px; text-align:center;">
+                <h2 style="margin-top:0;">Delete Selected Photos?</h2>
+                <p id="delete-count-text">This will permanently delete the selected photos. This action cannot be undone.</p>
+                <form method="post" action="{% url 'gallery:bulk_delete_photos' %}" style="margin-top:24px;">
+                    {% csrf_token %}
+                    <div id="selected-photo-ids"></div>
+                    <button type="button" id="cancel-bulk-delete" style="padding:8px 24px; margin-right:16px; background:#eee; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
+                    <button type="submit" style="padding:8px 24px; background:#c00; color:#fff; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+                </form>
+            </div>
+        </div>
+        <div class="drag-overlay" id="drag-overlay"><span>Drop photos to upload</span></div>
+        <div class="gallery">
+            {% for photo in photos %}
+                <div class="gallery-item">
+                    <input type="checkbox" class="photo-checkbox" id="photo-{{ photo.id }}" value="{{ photo.id }}">
+                    <label for="photo-{{ photo.id }}" class="selection-indicator"></label>
+                    <a href="{% url 'gallery:photo_detail' photo.id %}">
+                        {% if photo.thumbnail %}
+                            <img src="{{ photo.thumbnail.url }}" alt="Photo">
+                        {% else %}
+                            <img src="{{ photo.image.url }}" alt="Photo">
+                        {% endif %}
+                    </a>
+                </div>
+            {% empty %}
+                <p>No photos yet.</p>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+    const uploadLink = document.getElementById('upload-photo-link');
+    const uploadModal = document.getElementById('upload-modal');
+    const cancelUpload = document.getElementById('cancel-upload');
+    const selectAllLink = document.getElementById('select-all-link');
+    const deleteSelectedLink = document.getElementById('delete-selected-link');
+    const bulkDeleteModal = document.getElementById('bulk-delete-modal');
+    const cancelBulkDelete = document.getElementById('cancel-bulk-delete');
+    const photoCheckboxes = document.querySelectorAll('.photo-checkbox');
+    const selectedPhotoIdsDiv = document.getElementById('selected-photo-ids');
+    const deleteCountText = document.getElementById('delete-count-text');
+
+    // Menu toggle
+    document.addEventListener('click', function(event) {
+        if (menuBtn.contains(event.target)) {
+            dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+        } else if (!dropdownMenu.contains(event.target)) {
+            dropdownMenu.style.display = 'none';
+        }
+    });
+
+    // Upload modal logic
+    if (uploadLink && uploadModal && cancelUpload) {
+        uploadLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            dropdownMenu.style.display = 'none';
+            uploadModal.style.display = 'flex';
+        });
+        cancelUpload.addEventListener('click', function(e) {
+            e.preventDefault();
+            uploadModal.style.display = 'none';
+        });
+    }
+
+    // Photo selection logic
+    function updateSelectionState() {
+        const checkedBoxes = document.querySelectorAll('.photo-checkbox:checked');
+        const allBoxes = document.querySelectorAll('.photo-checkbox');
+        
+        if (checkedBoxes.length > 0) {
+            deleteSelectedLink.style.display = 'block';
+            selectAllLink.textContent = 'Deselect All';
+        } else {
+            deleteSelectedLink.style.display = 'none';
+            selectAllLink.textContent = 'Select All';
+        }
+    }
+
+    // Select All/Deselect All
+    if (selectAllLink) {
+        selectAllLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            const checkedBoxes = document.querySelectorAll('.photo-checkbox:checked');
+            const allBoxes = document.querySelectorAll('.photo-checkbox');
+            
+            if (checkedBoxes.length === allBoxes.length) {
+                // Deselect all
+                allBoxes.forEach(checkbox => checkbox.checked = false);
+            } else {
+                // Select all
+                allBoxes.forEach(checkbox => checkbox.checked = true);
+            }
+            updateSelectionState();
+        });
+    }
+
+    // Individual checkbox changes
+    photoCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectionState);
+    });
+
+    // Bulk delete modal
+    if (deleteSelectedLink && bulkDeleteModal && cancelBulkDelete) {
+        deleteSelectedLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            const checkedBoxes = document.querySelectorAll('.photo-checkbox:checked');
+            if (checkedBoxes.length > 0) {
+                // Update modal content
+                deleteCountText.textContent = `This will permanently delete ${checkedBoxes.length} selected photo(s). This action cannot be undone.`;
+                
+                // Add hidden inputs for selected photo IDs
+                selectedPhotoIdsDiv.innerHTML = '';
+                checkedBoxes.forEach(checkbox => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'photo_ids';
+                    input.value = checkbox.value;
+                    selectedPhotoIdsDiv.appendChild(input);
+                });
+                
+                dropdownMenu.style.display = 'none';
+                bulkDeleteModal.style.display = 'flex';
+            }
+        });
+        
+        cancelBulkDelete.addEventListener('click', function(e) {
+            e.preventDefault();
+            bulkDeleteModal.style.display = 'none';
+        });
+    }
+
+    // Drag-and-drop upload logic
+    const dragOverlay = document.getElementById('drag-overlay');
+    const fileInput = document.getElementById('id_image');
+    let droppedFiles = null;
+
+    function showDragOverlay() {
+        dragOverlay.classList.add('active');
+    }
+    function hideDragOverlay() {
+        dragOverlay.classList.remove('active');
+    }
+
+    window.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        showDragOverlay();
+    });
+    window.addEventListener('dragleave', function(e) {
+        if (e.target === document.body || e.target === dragOverlay) {
+            hideDragOverlay();
+        }
+    });
+    window.addEventListener('drop', function(e) {
+        e.preventDefault();
+        hideDragOverlay();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            droppedFiles = e.dataTransfer.files;
+            // Show upload modal and pre-fill file input
+            uploadModal.style.display = 'flex';
+            fileInput.files = droppedFiles;
+        }
+    });
+
+    // AJAX upload logic for modal
+    const uploadForm = uploadModal ? uploadModal.querySelector('form') : null;
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData();
+            const albumId = document.getElementById('id_album').value;
+            const newAlbum = document.getElementById('id_new_album').value;
+            const files = droppedFiles || fileInput.files;
+            if (!files || files.length === 0) {
+                alert('Please select at least one image.');
+                return;
+            }
+            for (let i = 0; i < files.length; i++) {
+                formData.append('images', files[i]);
+            }
+            if (albumId) formData.append('album', albumId);
+            if (newAlbum) formData.append('new_album', newAlbum);
+            // CSRF token
+            const csrfToken = uploadForm.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch('{% url "gallery:ajax_photo_upload" %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(() => alert('Upload failed.'));
+        });
+    }
+    // Reset droppedFiles on modal close
+    if (cancelUpload) {
+        cancelUpload.addEventListener('click', function() {
+            droppedFiles = null;
+            fileInput.value = '';
+        });
+    }
+
+    // Initialize selection state
+    updateSelectionState();
+</script>
+</body>
+</html> 

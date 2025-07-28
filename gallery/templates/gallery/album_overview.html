@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Album Overview</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; }
+        .container { display: flex; }
+        .sidebar {
+            width: 200px;
+            background: #222;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        .sidebar a {
+            display: block;
+            color: #fff;
+            text-decoration: none;
+            padding: 12px 24px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+        .sidebar a.active, .sidebar a:hover {
+            background: #444;
+        }
+        .main {
+            flex: 1;
+            padding: 32px;
+            background: #f7f7f7;
+        }
+        .albums {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .album-item {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px;
+            width: 180px;
+            text-align: center;
+        }
+        .album-item img, .album-item div {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav class="sidebar">
+        <a href="/">Home</a>
+        <a href="/albums/">Albums</a>
+    </nav>
+    <main class="main">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>Albums</h1>
+            <div class="menu-container" style="position: relative;">
+                <button id="menu-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">&#9776;</button>
+                <div id="dropdown-menu" style="display: none; position: absolute; right: 0; top: 36px; background: #fff; border: 1px solid #ddd; border-radius: 6px; min-width: 160px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10;">
+                    <a href="#" id="create-album-link" style="display: block; padding: 12px 20px; color: #222; text-decoration: none;">Create Album</a>
+                </div>
+            </div>
+        </div>
+        {% include 'gallery/create_album_modal.html' %}
+        <div class="albums">
+            {% for album in albums %}
+                <div class="album-item">
+                    <a href="{% url 'gallery:album_detail' album.id %}">
+                        {% if album.cover %}
+                            <img src="{{ album.cover.url }}" alt="{{ album.title }} cover">
+                        {% else %}
+                            <div style="background: #eee;">No Cover</div>
+                        {% endif %}
+                        <div>{{ album.title }}</div>
+                    </a>
+                </div>
+            {% empty %}
+                <p>No albums yet.</p>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+    document.addEventListener('click', function(event) {
+        if (menuBtn.contains(event.target)) {
+            dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+        } else if (!dropdownMenu.contains(event.target)) {
+            dropdownMenu.style.display = 'none';
+        }
+    });
+    // Create modal logic
+    const createLink = document.getElementById('create-album-link');
+    const createModal = document.getElementById('create-modal');
+    if (createLink && createModal) {
+        createLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            dropdownMenu.style.display = 'none';
+            createModal.style.display = 'flex';
+        });
+        if (window.setupCreateModal) window.setupCreateModal();
+    }
+</script>
+</body>
+</html> 

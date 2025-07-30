@@ -1,0 +1,48 @@
+name: Security Test
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  bandit-security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit
+        
+    - name: Run Bandit security scan
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        
+    - name: Check for high severity issues
+      run: |
+        if [ -f bandit-report.json ]; then
+          if grep -q '"issue_severity": "HIGH"' bandit-report.json; then
+            echo "🚨 High severity security issues found!"
+            cat bandit-report.json
+            exit 1
+          else
+            echo "✅ No high severity issues found"
+          fi
+        else
+          echo "No security issues found"
+        fi
+        
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-security-report
+        path: bandit-report.json 

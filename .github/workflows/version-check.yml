@@ -1,0 +1,81 @@
+name: Version Check
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Extract version from README
+      id: version
+      run: |
+        VERSION=$(grep -oP '\*\*Version:\*\*\s*\K[0-9]+\.[0-9]+\.[0-9]+' README.md)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "📦 Extracted version: $VERSION"
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Check if version tag exists
+      id: check-tag
+      run: |
+        IMAGE_NAME="${{ github.repository }}"
+        VERSION="${{ steps.version.outputs.version }}"
+        
+        echo "🔍 Checking if tag $VERSION exists for $IMAGE_NAME..."
+        
+        # Use Docker manifest to check if the tag exists
+        if docker manifest inspect ghcr.io/$IMAGE_NAME:$VERSION >/dev/null 2>&1; then
+          echo "❌ Version $VERSION already exists in GHCR!"
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          exit 1
+        else
+          echo "✅ Version $VERSION is available for use"
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Comment on PR if version exists
+      if: steps.check-tag.outputs.tag_exists == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const version = '${{ steps.version.outputs.version }}';
+          const imageName = '${{ github.repository }}';
+          
+          const commentBody = '## ❌ Version Check Failed\n\n' +
+            'The version **' + version + '** already exists as a tag for the Docker image `ghcr.io/' + imageName + '`.\n\n' +
+            '**Please update the version in README.md before merging this PR.**\n\n' +
+            'Current version in README: **' + version + '**\n' +
+            'Image: `ghcr.io/' + imageName + ':' + version + '`\n\n' +
+            '### How to fix:\n' +
+            '1. Update the version number in `README.md` (line 3)\n' +
+            '2. Use a new version number that doesn\'t already exist in GHCR\n' +
+            '3. Commit and push the changes\n\n' +
+            'This check prevents duplicate version tags from being created.';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: commentBody
+          });
+
+    - name: Fail if version exists
+      if: steps.check-tag.outputs.tag_exists == 'true'
+      run: |
+        echo "❌ PR blocked: Version ${{ steps.version.outputs.version }} already exists in GHCR"
+        echo "Please update the version in README.md before merging this PR"
+        exit 1 

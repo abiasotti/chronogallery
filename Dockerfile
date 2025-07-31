@@ -43,4 +43,4 @@ USER appuser
 EXPOSE 8000
 
 # Run the application with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "chronogallery.wsgi:application"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "300", "--max-requests", "1000", "--max-requests-jitter", "100", "chronogallery.wsgi:application"] 

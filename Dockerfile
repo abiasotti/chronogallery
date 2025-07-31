@@ -24,14 +24,17 @@ RUN adduser --disabled-password --gecos '' appuser
 # Copy project
 COPY . .
 
-# Create staticfiles directory and collect static files
-RUN mkdir -p staticfiles && python manage.py collectstatic --noinput
+# Create staticfiles and media directories and collect static files
+RUN mkdir -p staticfiles && mkdir -p media && python manage.py collectstatic --noinput
 
 # Run migrations
 RUN python manage.py migrate
 
 # Change ownership of the app directory to the appuser
 RUN chown -R appuser:appuser /app
+
+# Ensure media directory has correct permissions
+RUN chmod 755 /app/media
 
 # Switch to non-root user
 USER appuser

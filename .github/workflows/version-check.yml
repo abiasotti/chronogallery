@@ -55,11 +55,7 @@ jobs:
           const version = '${{ steps.version.outputs.version }}';
           const imageName = '${{ github.repository }}';
           
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `## ❌ Version Check Failed
+          const commentBody = `## ❌ Version Check Failed
 
 The version **${version}** already exists as a tag for the Docker image \`ghcr.io/${imageName}\`.
 
@@ -73,7 +69,13 @@ Image: \`ghcr.io/${imageName}:${version}\`
 2. Use a new version number that doesn't already exist in GHCR
 3. Commit and push the changes
 
-This check prevents duplicate version tags from being created.`
+This check prevents duplicate version tags from being created.`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: commentBody
           });
 
     - name: Fail if version exists

@@ -154,26 +154,56 @@ def bulk_delete_photos_view(request):
 @require_POST
 @csrf_protect
 def ajax_photo_upload_view(request):
-    album_id = request.POST.get('album')
-    new_album_name = request.POST.get('new_album')
-    files = request.FILES.getlist('images')  # Expecting multiple files
-    album = None
-    if album_id:
-        try:
-            album = Album.objects.get(id=album_id)
-        except Album.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Album not found.'}, status=400)
-    if new_album_name:
-        album = Album.objects.create(title=new_album_name)
-    if not album:
-        return JsonResponse({'success': False, 'error': 'No album specified.'}, status=400)
-    if not files:
-        return JsonResponse({'success': False, 'error': 'No images uploaded.'}, status=400)
-    photo_ids = []
-    for image in files:
-        photo = Photo.objects.create(album=album, image=image)
-        photo_ids.append(photo.id)
-        if not album.cover:
-            album.cover = photo.image
-            album.save()
-    return JsonResponse({'success': True, 'photo_ids': photo_ids})
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        album_id = request.POST.get('album')
+        new_album_name = request.POST.get('new_album')
+        files = request.FILES.getlist('images')  # Expecting multiple files
+        
+        logger.info(f"Upload request received - album_id: {album_id}, new_album: {new_album_name}, files_count: {len(files)}")
+        
+        album = None
+        if album_id:
+            try:
+                album = Album.objects.get(id=album_id)
+                logger.info(f"Found existing album: {album.title}")
+            except Album.DoesNotExist:
+                logger.error(f"Album not found with id: {album_id}")
+                return JsonResponse({'success': False, 'error': 'Album not found.'}, status=400)
+        
+        if new_album_name:
+            album = Album.objects.create(title=new_album_name)
+            logger.info(f"Created new album: {album.title}")
+        
+        if not album:
+            logger.error("No album specified")
+            return JsonResponse({'success': False, 'error': 'No album specified.'}, status=400)
+        
+        if not files:
+            logger.error("No files uploaded")
+            return JsonResponse({'success': False, 'error': 'No images uploaded.'}, status=400)
+        
+        photo_ids = []
+        for i, image in enumerate(files):
+            try:
+                logger.info(f"Processing file {i+1}/{len(files)}: {image.name} ({image.size} bytes)")
+                photo = Photo.objects.create(album=album, image=image)
+                photo_ids.append(photo.id)
+                logger.info(f"Successfully created photo: {photo.id}")
+                
+                if not album.cover:
+                    album.cover = photo.image
+                    album.save()
+                    logger.info(f"Set photo {photo.id} as album cover")
+            except Exception as e:
+                logger.error(f"Error processing file {image.name}: {str(e)}")
+                return JsonResponse({'success': False, 'error': f'Error processing {image.name}: {str(e)}'}, status=500)
+        
+        logger.info(f"Upload completed successfully. Created {len(photo_ids)} photos")
+        return JsonResponse({'success': True, 'photo_ids': photo_ids})
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in upload view: {str(e)}")
+        return JsonResponse({'success': False, 'error': f'Upload failed: {str(e)}'}, status=500)

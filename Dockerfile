@@ -5,6 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DEBUG=False
 ENV ALLOWED_HOSTS=localhost,127.0.0.1,*
+ENV CSRF_TRUSTED_ORIGINS=https://chrono.biasotti.co,http://localhost:8000,http://127.0.0.1:8000
 
 # Set work directory
 WORKDIR /app

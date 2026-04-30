@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13.13-slim-bookworm
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Create non-root user for security

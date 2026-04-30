@@ -1,4 +1,4 @@
-FROM python:3.14.1-slim-trixie
+FROM python:3.14.4-slim-trixie
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -10,9 +10,11 @@ ENV CSRF_TRUSTED_ORIGINS=https://chrono.biasotti.co,http://localhost:8000,http:/
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
+# Install system dependencies and apply security updates from base image
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && apt-get install -y --no-install-recommends \
+        gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies

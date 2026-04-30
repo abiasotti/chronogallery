@@ -185,14 +185,61 @@
         // Update image
         photoImage.src = data.image_url;
         // Update meta
-        document.querySelector('.meta').innerHTML = `<div>Album: ${data.album}</div><div>Uploaded: ${data.uploaded_at}</div>`;
+        const metaContainer = document.querySelector('.meta');
+        const albumDiv = document.createElement('div');
+        const uploadedDiv = document.createElement('div');
+        albumDiv.textContent = `Album: ${data.album}`;
+        uploadedDiv.textContent = `Uploaded: ${data.uploaded_at}`;
+        metaContainer.replaceChildren(albumDiv, uploadedDiv);
         // Update prev/next buttons
-        fullscreenNav.innerHTML = '';
+        fullscreenNav.replaceChildren();
         if (data.prev_id) {
-            fullscreenNav.innerHTML += `<a href=\"#\" id=\"fullscreen-prev\" data-photo-id=\"${data.prev_id}\" style=\"position:absolute; left:24px; top:0; bottom:0; margin:auto; height:48px; width:48px; background:rgba(0,0,0,0.5); color:#fff; border-radius:24px; display:flex; align-items:center; justify-content:center; font-size:32px; text-decoration:none; pointer-events:auto;\">&#8592;</a>`;
+            const prevLink = document.createElement('a');
+            prevLink.href = '#';
+            prevLink.id = 'fullscreen-prev';
+            prevLink.setAttribute('data-photo-id', String(data.prev_id));
+            prevLink.style.position = 'absolute';
+            prevLink.style.left = '24px';
+            prevLink.style.top = '0';
+            prevLink.style.bottom = '0';
+            prevLink.style.margin = 'auto';
+            prevLink.style.height = '48px';
+            prevLink.style.width = '48px';
+            prevLink.style.background = 'rgba(0,0,0,0.5)';
+            prevLink.style.color = '#fff';
+            prevLink.style.borderRadius = '24px';
+            prevLink.style.display = 'flex';
+            prevLink.style.alignItems = 'center';
+            prevLink.style.justifyContent = 'center';
+            prevLink.style.fontSize = '32px';
+            prevLink.style.textDecoration = 'none';
+            prevLink.style.pointerEvents = 'auto';
+            prevLink.textContent = '\u2190';
+            fullscreenNav.appendChild(prevLink);
         }
         if (data.next_id) {
-            fullscreenNav.innerHTML += `<a href=\"#\" id=\"fullscreen-next\" data-photo-id=\"${data.next_id}\" style=\"position:absolute; right:24px; top:0; bottom:0; margin:auto; height:48px; width:48px; background:rgba(0,0,0,0.5); color:#fff; border-radius:24px; display:flex; align-items:center; justify-content:center; font-size:32px; text-decoration:none; pointer-events:auto;\">&#8594;</a>`;
+            const nextLink = document.createElement('a');
+            nextLink.href = '#';
+            nextLink.id = 'fullscreen-next';
+            nextLink.setAttribute('data-photo-id', String(data.next_id));
+            nextLink.style.position = 'absolute';
+            nextLink.style.right = '24px';
+            nextLink.style.top = '0';
+            nextLink.style.bottom = '0';
+            nextLink.style.margin = 'auto';
+            nextLink.style.height = '48px';
+            nextLink.style.width = '48px';
+            nextLink.style.background = 'rgba(0,0,0,0.5)';
+            nextLink.style.color = '#fff';
+            nextLink.style.borderRadius = '24px';
+            nextLink.style.display = 'flex';
+            nextLink.style.alignItems = 'center';
+            nextLink.style.justifyContent = 'center';
+            nextLink.style.fontSize = '32px';
+            nextLink.style.textDecoration = 'none';
+            nextLink.style.pointerEvents = 'auto';
+            nextLink.textContent = '\u2192';
+            fullscreenNav.appendChild(nextLink);
         }
         // Re-attach event listeners
         attachFullscreenNavHandlers();

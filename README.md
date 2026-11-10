@@ -1,6 +1,6 @@
 # Chronogallery
 
-**Version:** 0.1.11
+**Version:** 0.1.12
 
 Chronogallery is a Django-based web application for storing, organizing, and viewing photo albums. The platform features a modern, mobile-friendly interface with in-page modals, intuitive navigation, and seamless fullscreen photo browsing.
 
